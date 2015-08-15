@@ -9,8 +9,10 @@ fs.readFile(mdTarget, function(err, data) {
     var res = '';
 
     // todo: optimize
-    headersArr = headersArr.map(function(h) {
-        return '[' + h + '](#' + h.replace(/#{1,6}|&/g, '').trim().replace(/\s/g, '-').toLowerCase() + ')';
+    headersArr = headersArr.map(function(header) {
+        header = header.replace(/#{1,6}\s/g, '').trim();
+
+        return '[' + header + '](#' + header.replace(/&|\//g, '').replace(/\s/g, '-').toLowerCase() + ')';
     });
 
     fs.writeFile('test.md', headersArr.join('\n'), function (err) {
