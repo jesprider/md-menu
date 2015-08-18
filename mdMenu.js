@@ -5,13 +5,14 @@ var config = {
     cascade: true,
     firstLevel: 2,
     menuTitle: '## Table of Contents',
-    placeholder: '<!--[mdMenu]-->'
+    placeholder: '<!--mdMenu-->'
 };
 
 fs.readFile(config.target, function(err, data) {
     if (err) throw err;
 
-    var regexp = /#{1,6}\s[^\r\n|\r|\n]+/g;
+    // todo: remove menuTitle from the menu
+    var regexp = /#{1,6}\s.+/g;
     var source = data.toString();
     var headersArr = source.match(regexp);
     var res = '';
@@ -39,13 +40,15 @@ fs.readFile(config.target, function(err, data) {
     });
 
     if (source.indexOf(config.placeholder) !== -1) {
-        res = source.replace(config.placeholder, config.menuTitle + '\r\n' + headersArr.join('\r\n'));
+        var comment = new RegExp(config.placeholder + '\\s[\\s\\S]*' + config.placeholder);
+
+        res = source.replace(comment, config.placeholder + '\r\n' + config.menuTitle + '\r\n' + headersArr.join('\r\n') + '\r\n' + config.placeholder);
     } else {
         res = config.menuTitle + '\r\n' + headersArr.join('\r\n') + '\r\n\r\n' + source;
     }
 
 
-    fs.writeFile('content.md', res, function (err) {
+    fs.writeFile('README.md', res, function (err) {
         if (err) throw err;
 
         console.log('It\'s saved!');
