@@ -1,20 +1,25 @@
 var fs = require('fs');
 
 var config = {
-    target: 'README.md',
+    source: 'README.md',
+    destination: 'README.md',
     cascade: true,
     firstLevel: 2,
     menuTitle: '## Table of Contents',
     placeholder: '<!--mdMenu-->'
 };
 
-fs.readFile(config.target, function(err, data) {
+fs.readFile(config.source, function(err, data) {
     if (err) throw err;
 
-    // todo: remove menuTitle from the menu
-    var regexp = /#{1,6}\s.+/g;
-    var source = data.toString();
-    var headersArr = source.match(regexp);
+    // All headers in document
+    var headerRegexp = /#{1,6}\s.+/g;
+    // Placeholders with/without menu
+    var menuRegexp = new RegExp(config.placeholder + '[\\s\\S]*' + config.placeholder);
+
+    var content = data.toString();
+    var headersArr = content.match(headerRegexp);
+
     var res = '';
 
     if (headersArr === null || !headersArr.length) {
@@ -22,9 +27,15 @@ fs.readFile(config.target, function(err, data) {
         return;
     }
 
+    // Remove title of menu from menu (config.menuTitle)
+    headersArr = headersArr.filter(function(header){
+        return header !== config.menuTitle;
+    });
+
     // todo: optimize
     headersArr = headersArr.map(function(header) {
         var tabs = '';
+        var link;
 
         if (config.cascade) {
             // Detect level of header
@@ -35,20 +46,19 @@ fs.readFile(config.target, function(err, data) {
 
         // Remove unnecessary symbols (#) and trim the string.
         header = header.replace(/#{1,6}\s/g, '').trim();
+        link = '#' + header.replace(/[&\/]/g, '').replace(/\s/g, '-').toLowerCase()
 
-        return tabs + '[' + header + '](#' + header.replace(/&|\//g, '').replace(/\s/g, '-').toLowerCase() + ')';
+        return tabs + '[' + header + '](' + link + ')';
     });
 
-    if (source.indexOf(config.placeholder) !== -1) {
-        var comment = new RegExp(config.placeholder + '\\s[\\s\\S]*' + config.placeholder);
-
-        res = source.replace(comment, config.placeholder + '\r\n' + config.menuTitle + '\r\n' + headersArr.join('\r\n') + '\r\n' + config.placeholder);
+    if (content.indexOf(config.placeholder) !== -1) {
+        res = content.replace(menuRegexp, config.placeholder + '\r\n' + config.menuTitle + '\r\n' + headersArr.join('\r\n') + '\r\n' + config.placeholder);
     } else {
-        res = config.menuTitle + '\r\n' + headersArr.join('\r\n') + '\r\n\r\n' + source;
+        res = config.menuTitle + '\r\n' + headersArr.join('\r\n') + '\r\n\r\n' + content;
     }
 
 
-    fs.writeFile('README.md', res, function (err) {
+    fs.writeFile(config.destination, res, function (err) {
         if (err) throw err;
 
         console.log('It\'s saved!');
