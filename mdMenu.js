@@ -12,55 +12,65 @@ var config = {
 fs.readFile(config.source, function(err, data) {
     if (err) throw err;
 
-    // All headers in document
-    var headerRegexp = /#{1,6}\s.+/g;
-    // Placeholders with/without menu
+    // Matches to all headers in document (by default: /#{2,6}\s.+/g)
+    var headerRegexp = new RegExp('#{' + config.firstLevel + ',6}\\s.+', 'g');
+    // Matches to placeholders with/without menu (by default: /<!--mdMenu-->[\s\S]*<!--mdMenu-->/)
     var menuRegexp = new RegExp(config.placeholder + '[\\s\\S]*' + config.placeholder);
 
     var content = data.toString();
     var headersArr = content.match(headerRegexp);
-
-    var res = '';
+    var br = '\r\n';
+    var menu;
+    var res;
 
     if (headersArr === null || !headersArr.length) {
         console.log('No headers were found.');
         return;
     }
 
-    // Remove title of menu from menu (config.menuTitle)
-    headersArr = headersArr.filter(function(header){
-        return header !== config.menuTitle;
-    });
+    menu = headersArr
+        // Remove title of menu from menu (config.menuTitle)
+        .filter(function (header) {
+            return header !== config.menuTitle;
+        })
+        // Getting md links
+        .map(function(header) {
+            var tabs = '';
+            var link;
 
-    // todo: optimize
-    headersArr = headersArr.map(function(header) {
-        var tabs = '';
-        var link;
+            if (config.cascade) {
+                // Detect level of header
+                var level = (header.match(/#/g) || []).length;
+                // Save tabs if needed
+                tabs = new Array(level - config.firstLevel + 1).join('\t') + '* ';
+            }
 
-        if (config.cascade) {
-            // Detect level of header
-            var level = (header.match(/#/g) || []).length;
-            // Save tabs if needed
-            tabs = new Array(level - config.firstLevel + 1).join('\t') + '* ';
-        }
+            // Normalize header
+            header = header.replace(/#{1,6}\s/g, '').trim();
+            // Create links like md parser does
+            link = '#' + header.replace(/[&\/]/g, '').replace(/\s/g, '-').toLowerCase();
 
-        // Remove unnecessary symbols (#) and trim the string.
-        header = header.replace(/#{1,6}\s/g, '').trim();
-        link = '#' + header.replace(/[&\/]/g, '').replace(/\s/g, '-').toLowerCase()
+            return tabs + '[' + header + '](' + link + ')';
+        })
+        // Concat
+        .join('\r\n');
 
-        return tabs + '[' + header + '](' + link + ')';
-    });
-
-    if (content.indexOf(config.placeholder) !== -1) {
-        res = content.replace(menuRegexp, config.placeholder + '\r\n' + config.menuTitle + '\r\n' + headersArr.join('\r\n') + '\r\n' + config.placeholder);
+    if (config.menuTitle) {
+        menu = config.placeholder + br + config.menuTitle + br + menu + br + config.placeholder;
     } else {
-        res = config.menuTitle + '\r\n' + headersArr.join('\r\n') + '\r\n\r\n' + content;
+        menu = config.placeholder + br + menu + br + config.placeholder;
     }
 
+    // If no placeholders - paste in the beginning of document
+    if (content.indexOf(config.placeholder) !== -1) {
+        res = content.replace(menuRegexp, menu);
+    } else {
+        res = menu + br + br + content;
+    }
 
     fs.writeFile(config.destination, res, function (err) {
         if (err) throw err;
 
-        console.log('It\'s saved!');
+        console.log('Menu was built.');
     });
 });
