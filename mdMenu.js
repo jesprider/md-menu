@@ -1,19 +1,44 @@
 var fs = require('fs');
 
+var args = process.argv.slice(2);
+var options = {};
+
+// Parse options if it exist (e.g. --source='custom.md')
+args.length && args.forEach(function(option) {
+    var optionArr = option.split('=');
+    options[optionArr[0].replace('--', '')] = optionArr[1];
+});
+
+Object.prototype.merge = function(obj) {
+    if (typeof obj !== 'object') return;
+
+    for (var prop in obj) {
+        if (this.hasOwnProperty(prop) &&
+            obj.hasOwnProperty(prop)) {
+            this[prop] = obj[prop];
+        }
+    }
+
+    return this;
+};
+
 var config = {
     source: 'README.md',
     destination: 'README.md',
-    cascade: true,
+    cascade: 'true',
     firstLevel: 2,
     menuTitle: '## Table of Contents',
     placeholder: '<!--mdMenu-->'
 };
+
+config.merge(options);
 
 fs.readFile(config.source, function(err, data) {
     if (err) throw err;
 
     // Matches to all headers in document (by default: /#{2,6}\s.+/g)
     var headerRegexp = new RegExp('#{' + config.firstLevel + ',6}\\s.+', 'g');
+    // todo: check this regexp if more than 1 menu are on a page
     // Matches to placeholders with/without menu (by default: /<!--mdMenu-->[\s\S]*<!--mdMenu-->/)
     var menuRegexp = new RegExp(config.placeholder + '[\\s\\S]*' + config.placeholder);
 
@@ -38,7 +63,7 @@ fs.readFile(config.source, function(err, data) {
             var tabs = '';
             var link;
 
-            if (config.cascade) {
+            if (config.cascade === 'true') {
                 // Detect level of header
                 var level = (header.match(/#/g) || []).length;
                 // Save tabs if needed
